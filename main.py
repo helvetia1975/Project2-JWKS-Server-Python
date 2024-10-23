@@ -6,31 +6,62 @@ import base64
 import json
 import jwt
 import datetime
+import sqlite3
+
 # Server and port requests are made to
 hostName = "localhost"
 serverPort = 8080
+
+# SQLite database file initialization/creation
+def init_db():
+    conn = sqlite3.connect('totally_not_my_privateKeys.db')
+    cursor = conn.cursor()
+    # Create a table if it doesn't exist
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS keys(
+        kid INTEGER PRIMARY KEY AUTOINCREMENT,
+        key BLOB NOT NULL,
+        exp INTEGER NOT NULL
+    )
+    ''')
+    conn.commit()  # Save changes
+    return conn  # Return the connection object
+
+# Database initialization/creation
+db_conn = init_db()
+
 # Creation of private key
 private_key = rsa.generate_private_key(
     public_exponent=65537,
     key_size=2048,
 )
+
+# Store the key and its expiration in the database
+def store_key(pem, expiration_time):
+    cursor = db_conn.cursor()
+    cursor.execute("INSERT INTO keys (key, exp) VALUES (?, ?)", (pem, expiration_time))
+    db_conn.commit()
+
 # Copy of private key to deal with expired scenario
 expired_key = rsa.generate_private_key(
     public_exponent=65537,
     key_size=2048,
 )
+
 # PEM encoding of the private key
 pem = private_key.private_bytes(
     encoding=serialization.Encoding.PEM,
     format=serialization.PrivateFormat.TraditionalOpenSSL,
     encryption_algorithm=serialization.NoEncryption()
 )
+
 # PEM encoding of the copy of the private key
 expired_pem = expired_key.private_bytes(
     encoding=serialization.Encoding.PEM,
     format=serialization.PrivateFormat.TraditionalOpenSSL,
     encryption_algorithm=serialization.NoEncryption()
 )
+
 # Assigns numbers with the private numbers of the private key
 numbers = private_key.private_numbers()
 
@@ -84,6 +115,11 @@ class MyServer(BaseHTTPRequestHandler):
                 headers["kid"] = "expiredKID"
                 token_payload["exp"] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
             encoded_jwt = jwt.encode(token_payload, pem, algorithm="RS256", headers=headers)
+            
+            # Store the key in the database with expiration time
+            expiration_time = int(datetime.datetime.utcnow().timestamp()) + 3600  # 1 hour from now
+            store_key(pem, expiration_time)
+
             self.send_response(200)
             self.end_headers()
             self.wfile.write(bytes(encoded_jwt, "utf-8"))
@@ -127,3 +163,4 @@ if __name__ == "__main__":
         pass
 
     webServer.server_close()
+    db_conn.close()
