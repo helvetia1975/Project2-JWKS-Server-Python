@@ -17,13 +17,7 @@ def init_db():
     conn = sqlite3.connect('totally_not_my_privateKeys.db')
     cursor = conn.cursor()
     # Create a table if it doesn't exist
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS keys(
-        kid INTEGER PRIMARY KEY AUTOINCREMENT,
-        key BLOB NOT NULL,
-        exp INTEGER NOT NULL
-    )
-    ''')
+    cursor.execute(' CREATE TABLE IF NOT EXISTS keys (kid INTEGER PRIMARY KEY AUTOINCREMENT, key BLOB NOT NULL, exp INTEGER NOT NULL')
     conn.commit()  # Save changes
     return conn  # Return the connection object
 
@@ -114,10 +108,12 @@ class MyServer(BaseHTTPRequestHandler):
             if 'expired' in params:
                 headers["kid"] = "expiredKID"
                 token_payload["exp"] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+                expiration_time = int(datetime.datetime.utcnow().timestamp()) - 3600  # 1 hour in the past
+            else:
+                expiration_time = int(datetime.datetime.utcnow().timestamp()) + 3600  # 1 hour from now
             encoded_jwt = jwt.encode(token_payload, pem, algorithm="RS256", headers=headers)
             
             # Store the key in the database with expiration time
-            expiration_time = int(datetime.datetime.utcnow().timestamp()) + 3600  # 1 hour from now
             store_key(pem, expiration_time)
 
             self.send_response(200)
