@@ -17,7 +17,7 @@ def init_db():
     conn = sqlite3.connect('totally_not_my_privateKeys.db')
     cursor = conn.cursor()
     # Create a table if it doesn't exist
-    cursor.execute(' CREATE TABLE IF NOT EXISTS keys (kid INTEGER PRIMARY KEY AUTOINCREMENT, key BLOB NOT NULL, exp INTEGER NOT NULL')
+    cursor.execute(' CREATE TABLE IF NOT EXISTS keys (kid INTEGER PRIMARY KEY AUTOINCREMENT, key BLOB NOT NULL, exp INTEGER NOT NULL)')
     conn.commit()  # Save changes
     return conn  # Return the connection object
 
