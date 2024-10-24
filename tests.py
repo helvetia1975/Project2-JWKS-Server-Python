@@ -7,32 +7,28 @@ class TestMyServer(unittest.TestCase):
     BASE_URL = 'http://localhost:8080'
 
     @classmethod
+    # Start the server here if needed or ensure it's running
     def setUpClass(cls):
-        # Start the server here if needed or ensure it's running
         pass
 
+    # Shut down the server if you started it in setUpClass
     @classmethod
     def tearDownClass(cls):
-        # Shut down the server if you started it in setUpClass
         pass
 
+    # Decode and verify the token (you can use jwt.decode with the public key)
     def test_post_auth_success(self):
         response = requests.post(f"{self.BASE_URL}/auth")
         self.assertEqual(response.status_code, 200)
         token = response.content.decode('utf-8')
         self.assertIsNotNone(token)
 
-        # Decode and verify the token (you can use jwt.decode with the public key)
-        # This step might require handling exceptions or further verification
-
+    # Decode and verify the expired token
     def test_post_auth_expired(self):
         response = requests.post(f"{self.BASE_URL}/auth?expired=1")
         self.assertEqual(response.status_code, 200)
         token = response.content.decode('utf-8')
         self.assertIsNotNone(token)
-
-        # Decode and verify the expired token
-        # This step might require handling exceptions or further verification
 
     def test_get_jwks(self):
         response = requests.get(f"{self.BASE_URL}/.well-known/jwks.json")
