@@ -162,4 +162,5 @@ if __name__ == "__main__":
         pass
 
     webServer.server_close()
+    # Close the database
     db_conn.close()
