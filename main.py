@@ -70,9 +70,8 @@ def int_to_base64(value):
     if len(value_hex) % 2 == 1:
         value_hex = '0' + value_hex
     value_bytes = bytes.fromhex(value_hex)
-    encoded = base64.urlsafe_b64encode(value_bytes).rstrip(b'=')
+    encoded = base64.urlsafe_b64encode(value_bytes).rstrip(b'=')  # Ensure no padding
     return encoded.decode('utf-8')
-
 
 class MyServer(BaseHTTPRequestHandler):
     # Controls HTTP PUT requests
@@ -165,5 +164,3 @@ if __name__ == "__main__":
         pass
 
     webServer.server_close()
-    # Close the database
-    db_conn.close()
