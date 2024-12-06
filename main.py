@@ -7,6 +7,32 @@ import json
 import jwt
 import datetime
 import sqlite3
+from collections import deque
+import time
+
+# Rate limit parameters
+MAX_REQUESTS_PER_SECOND = 10
+TIME_WINDOW = 1  # in seconds
+
+# This will store timestamps of successful POST requests to /auth
+request_timestamps = deque()
+
+# Define a helper function for rate limiting
+def is_rate_limited():
+    current_time = time.time()
+    
+    # Remove timestamps that are older than 1 second from the current time
+    while request_timestamps and request_timestamps[0] < current_time - TIME_WINDOW:
+        request_timestamps.popleft()
+
+    # If the number of requests in the current time window is greater than the limit
+    if len(request_timestamps) >= MAX_REQUESTS_PER_SECOND:
+        return True
+    else:
+        # Otherwise, log the current timestamp
+        request_timestamps.append(current_time)
+        return False
+
 
 # Server and port requests are made to
 hostName = "localhost"
@@ -96,6 +122,15 @@ class MyServer(BaseHTTPRequestHandler):
         return
     # Controls HTTP POST requests
     def do_POST(self):
+        # First, check if the request exceeds the rate limit
+        if is_rate_limited():
+            # Respond with 429 if rate limited
+            self.send_response(429)
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(bytes("Too Many Requests", "utf-8"))
+            return
+
         parsed_path = urlparse(self.path)
         params = parse_qs(parsed_path.query)
         # Checks if a request is made; if one is made then a payload is prepared with an expiration time and username
