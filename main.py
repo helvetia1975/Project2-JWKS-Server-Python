@@ -9,6 +9,16 @@ import datetime
 import sqlite3
 from collections import deque
 import time
+import uuid
+from passlib.hash import argon2
+
+# Function to generate a secure password using UUIDv4
+def generate_secure_password():
+    return str(uuid.uuid4())
+
+# Function to hash the password using Argon2
+def hash_password(password):
+    return argon2.using(rounds=4, salt_size=16).hash(password)
 
 # Rate limit parameters
 MAX_REQUESTS_PER_SECOND = 10
@@ -134,6 +144,61 @@ class MyServer(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         params = parse_qs(parsed_path.query)
         # Checks if a request is made; if one is made then a payload is prepared with an expiration time and username
+        
+        # Check if the request path is /register
+        if self.path == "/register":
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+
+            # Parse JSON body
+            try:
+                user_data = json.loads(post_data)
+            except json.JSONDecodeError:
+                self.send_response(400)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(bytes(json.dumps({"error": "Invalid JSON format"}), "utf-8"))
+                return
+
+            # Get username and email from the request
+            username = user_data.get("username")
+            email = user_data.get("email")
+
+            # Validate input
+            if not username or not email:
+                self.send_response(400)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(bytes(json.dumps({"error": "Username and email are required"}), "utf-8"))
+                return
+
+            # Generate a secure password using UUIDv4
+            password = generate_secure_password()
+
+            # Hash the password using Argon2
+            password_hash = hash_password(password)
+
+            # Store the user details in the database
+            cursor = db_conn.cursor()
+            try:
+                cursor.execute("INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)",
+                               (username, password_hash, email))
+                db_conn.commit()
+            except sqlite3.IntegrityError as e:
+                self.send_response(400)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(bytes(json.dumps({"error": f"User could not be created: {str(e)}"}), "utf-8"))
+                return
+
+            # Return the generated password in the response
+            response = {"password": password}
+            self.send_response(201)  # HTTP status code 201 Created
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(bytes(json.dumps(response), "utf-8"))
+            return
+
         if parsed_path.path == "/auth":
             headers = {
                 "kid": "goodKID"
